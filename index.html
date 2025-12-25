@@ -8,7 +8,6 @@
         body { margin: 0; background-color: #222; overflow: hidden; }
         .input_video { display: none; } /* Hide the raw webcam video */
         .output_canvas { width: 100%; height: 100vh; display: block; } /* 3D Canvas fills the screen */
-        /* Loading overlay */
         #loading {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: white; font-family: sans-serif; font-size: 24px; pointer-events: none;
@@ -20,11 +19,12 @@
     <canvas class="output_canvas"></canvas>
     <div id="loading">Loading AI & Model...</div>
 
-    <!-- Import Libraries via CDN -->
+    <!-- Import Libraries via CDN (Fixed Links) -->
     <script type="module">
-        import * as THREE from 'cdn.skypack.dev';
-        import { GLTFLoader } from 'cdn.skypack.dev/examples/jsm/loaders/GLTFLoader.js';
-        import { OrbitControls } from 'cdn.skypack.dev/examples/jsm/controls/OrbitControls.js';
+        // Using JSDelivr/Unpkg stable links for Three.js
+        import * as THREE from 'cdn.jsdelivr.net';
+        import { GLTFLoader } from 'cdn.jsdelivr.net';
+        import { OrbitControls } from 'cdn.jsdelivr.net';
         import * as Kalidokit from 'cdn.jsdelivr.net';
 
         // --- SETUP THREE.JS SCENE ---
@@ -50,14 +50,13 @@
         controls.update();
 
         // --- LOAD 3D MODEL ---
-        window.bones = {}; // Attach bones to window for global access
+        window.bones = {}; 
 
         const loader = new GLTFLoader();
         loader.load('model.glb', (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
-            // Map bones by name (adjust includes based on your model's naming)
             model.traverse((object) => {
                 if (object.isBone) {
                     const name = object.name.toLowerCase();
@@ -90,7 +89,6 @@
         }
         animate();
 
-        // Helper to apply rotation
         const rotateBone = (boneName, rotation) => {
             const bone = window.bones[boneName];
             if (bone && rotation) {
@@ -99,12 +97,10 @@
             }
         };
 
-        // Listen for MediaPipe Results (defined below in global script)
         window.addEventListener('mediapipe-results', (evt) => {
             const results = evt.detail;
             if (!results.poseLandmarks || !window.bones.Hips) return;
 
-            // Solve Pose
             const riggedPose = Kalidokit.Pose.solve(results.poseLandmarks, results.poseLandmarks3D, {
                 runtime: 'mediapipe',
                 imageSize: { width: 640, height: 480 }
@@ -125,7 +121,6 @@
                 rotateBone('LeftLowerLeg', riggedPose.LeftLowerLeg);
             }
             
-            // Solve Hands
             if (results.rightHandLandmarks) {
                 const riggedHand = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right");
                 rotateBone('RightHand', riggedHand.RightWrist);
@@ -138,10 +133,9 @@
             document.getElementById('loading').style.display = 'none';
         });
 
-        // The MediaPipe initialization is done in the global scripts below
     </script>
 
-    <!-- MediaPipe Scripts (loaded globally) -->
+    <!-- MediaPipe Scripts (loaded globally with working sources) -->
     <script src="cdn.jsdelivr.net" crossorigin="anonymous"></script>
     <script src="cdn.jsdelivr.net" crossorigin="anonymous"></script>
 
@@ -150,6 +144,7 @@
         const videoElement = document.querySelector('.input_video');
         
         const holistic = new Holistic({locateFile: (file) => {
+            // This path provides the necessary WASM/data files for the library to run
             return `cdn.jsdelivr.net{file}`;
         }});
 
@@ -160,13 +155,11 @@
             minTrackingConfidence: 0.5
         });
 
-        // When MediaPipe has results, dispatch a custom event
         holistic.onResults((results) => {
             const event = new CustomEvent('mediapipe-results', { detail: results });
             window.dispatchEvent(event);
         });
 
-        // Start the camera
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await holistic.send({image: videoElement});
